@@ -59,23 +59,20 @@ for _, job := range jobs {
 
 ```$golang
 // High-level Consumer API.
-// Make it more easier to consume job continuously and don't need to concern empty job.  
-
-consumer := NewConsumer(ConsumerConfig{
+// Make it easier to consume jobs continuously and don't need to the concern empty job.
+consumer := NewConsumer(&ConsumerConfig{
     Host:          "localhost",
     Port:          "7777",
     Namespace:     "namespace",
     Token:         "token",
-    Queue:         "q1",
-    TimeoutSecond: 3,
-    TickSecond:    1,
+    Queues:         []string{"q1"},
+    TTR:            30,
 })
-consumer.Receive(context.Background(), func(ctx context.Context, job *Job) error {
-    // handle your job here
-    consumer.Ack(job)   // delete job
-    return nil
+err := consumer.Receive(context.Background(), func(ctx context.Context, job *Job) {
+    // TODO: process the job here
+	if err := job.Ack(); err != nil {
+    }
 })
-```
 
-> CAUTION: consume would return nil job and error when queue was empty or not found, you can enable
-the client option to return error when the job is nil by revoking `EnableErrorOnNilJob()` function. 
+// Use `consumer.Close()` to stop the consumer 
+```

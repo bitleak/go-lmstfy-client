@@ -82,7 +82,7 @@ func (c *Consumer) Receive(ctx context.Context, fn func(ctx context.Context, job
 	return nil
 }
 
-// Close would stop the poll thread
+// Close would stop all polling threads
 func (c *Consumer) Close() {
 	close(c.shutdown)
 }
