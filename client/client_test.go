@@ -7,6 +7,13 @@ import (
 	"time"
 )
 
+var (
+	Host      = "localhost"
+	Port      = 7777
+	Namespace = "ns1"
+	Token     = "01F2EP8A87NPYWB2T6Q858CTQ2"
+)
+
 func TestParseSchemeFromURL(t *testing.T) {
 	schemeCases := map[string]string{
 		"http://abc.com":  "http",
