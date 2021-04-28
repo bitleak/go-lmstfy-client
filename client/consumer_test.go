@@ -2,42 +2,41 @@ package client
 
 import (
 	"context"
-	"os"
 	"strconv"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestConsumer_Receive(t *testing.T) {
-	const testConsumeQueue = "test-comsume"
+	const testConsumeQueue = "test_consumer_queue"
 
-	cli := NewLmstfyClient(Host, Port, Namespace, Token)
-	consumer := NewConsumer(ConsumerConfig{
-		Host:          Host,
-		Port:          Port,
-		Namespace:     Namespace,
-		Token:         Token,
-		Queue:         testConsumeQueue,
-		TimeoutSecond: 3,
-		TickSecond:    1,
-	})
+	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
 
-	var jobIDList []string
+	var jobIDs []string
 	for i := 0; i < 3; i++ {
-		jobID, _ := cli.Publish(testConsumeQueue, []byte(strconv.Itoa(i)), 0, 1, 0)
-		jobIDList = append(jobIDList, jobID)
+		jobID, err := cli.Publish(testConsumeQueue, []byte(strconv.Itoa(i)), 0, 1, 0)
+		require.Nil(t, err)
+		jobIDs = append(jobIDs, jobID)
 	}
 
-	var count int
-	consumer.Receive(context.Background(), func(ctx context.Context, job *Job) error {
-		if jobIDList[count] != job.ID {
-			t.Errorf("Mismatched job id, the expected is %s, the real is %s", jobIDList[count], job.ID)
-		}
-		consumer.Ack(job)
-
-		count++
-		if count == len(jobIDList) {
-			os.Exit(0)
-		}
-		return nil
+	var ind int
+	consumer := NewConsumer(&ConsumerConfig{
+		Host:      TestHost,
+		Port:      TestPort,
+		Namespace: TestNamespace,
+		Token:     TestToken,
+		Queues:    []string{testConsumeQueue},
 	})
+	err := consumer.Receive(context.Background(), func(ctx context.Context, job *Job) {
+		if jobIDs[ind] != job.ID {
+			require.Equal(t, jobIDs[ind], job.ID, "Mismatched job id")
+		}
+		require.Nil(t, job.Ack())
+		ind++
+		if ind == len(jobIDs) {
+			consumer.Close()
+		}
+	})
+	require.Nil(t, err)
 }

@@ -2,78 +2,87 @@ package client
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
+	"sync"
 )
 
 type ConsumerConfig struct {
-	Host          string
-	Port          int
-	Namespace     string
-	Token         string
-	Queue         string
-	TimeoutSecond uint32
-	TickSecond    uint32
+	Host      string
+	Port      int
+	Namespace string
+	Token     string
+	Queues    []string
+	TTR       uint32
+
+	Threads int
 }
 
 type Consumer struct {
 	*LmstfyClient
-	Queue         string // target queue
-	TimeoutSecond uint32 // timeout from poll job from queue
-	TickSecond    uint32 // time cycle for poll job from queue
+
+	ErrorCallback func(err error)
+
+	cfg      *ConsumerConfig
+	wg       sync.WaitGroup
+	shutdown chan struct{}
 }
 
-func NewConsumer(cc ConsumerConfig) *Consumer {
-	return &Consumer{
-		LmstfyClient:  NewLmstfyClient(cc.Host, cc.Port, cc.Namespace, cc.Token),
-		Queue:         cc.Queue,
-		TimeoutSecond: cc.TimeoutSecond,
-		TickSecond:    cc.TickSecond,
+func (cfg *ConsumerConfig) init() {
+	if cfg.Threads <= 0 {
+		cfg.Threads = 1
+	}
+	if cfg.Threads > 64 {
+		cfg.Threads = 64
+	}
+	if cfg.TTR == 0 {
+		cfg.TTR = 30
 	}
 }
 
-// registerSignal register specified signals that could stop blocking consumer receive function
-func registerSignal(shutdown chan struct{}) {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, []os.Signal{syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGUSR1}...)
-	go func() {
-		for range c {
-			fmt.Println("Receive shutdown signal...")
-			close(shutdown)
-			return
-		}
-	}()
+// NewConsumer would create a new instance of the high-level consumer
+func NewConsumer(cfg *ConsumerConfig) *Consumer {
+	cfg.init()
+	return &Consumer{
+		cfg:          cfg,
+		shutdown:     make(chan struct{}),
+		LmstfyClient: NewLmstfyClient(cfg.Host, cfg.Port, cfg.Namespace, cfg.Token),
+	}
 }
 
-// Receive receive job from queue continuously and stop when specified signals are sent
-func (c *Consumer) Receive(ctx context.Context, fn func(ctx context.Context, job *Job) error) {
-	shutdown := make(chan struct{})
-	registerSignal(shutdown)
+// Receive would create threads and poll jobs from the remote server
+func (c *Consumer) Receive(ctx context.Context, fn func(ctx context.Context, job *Job)) error {
+	c.wg.Add(c.cfg.Threads)
+	for i := 0; i < c.cfg.Threads; i++ {
+		go func() {
+			defer c.wg.Done()
 
-	timer := time.NewTicker(time.Duration(c.TickSecond) * time.Second)
-	defer timer.Stop()
-	go func() {
-		for {
-			<-timer.C
-			job, err := c.Consume(c.Queue, 10, c.TimeoutSecond)
-			if err != nil || job == nil {
-				continue
-			}
-			err = fn(ctx, job)
-			if err != nil {
-				continue
-			}
-		}
-	}()
+			for {
+				select {
+				case <-c.shutdown:
+					return
+				default:
+				}
 
-	<-shutdown
-	return
+				job, err := c.ConsumeFromQueues(c.cfg.TTR, 3, c.cfg.Queues...)
+				// err == nil and job == nil means no job
+				if err == nil && job == nil {
+					continue
+				}
+				if err != nil {
+					if c.ErrorCallback != nil {
+						c.ErrorCallback(err)
+					}
+					continue
+				}
+				fn(ctx, job)
+			}
+		}()
+	}
+
+	c.wg.Wait()
+	return nil
 }
 
-// Ack delete job from queue
-func (c *Consumer) Ack(job *Job) error {
-	return c.LmstfyClient.Ack(job.Queue, job.ID)
+// Close would stop the poll thread
+func (c *Consumer) Close() {
+	close(c.shutdown)
 }
