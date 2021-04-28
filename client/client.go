@@ -16,6 +16,8 @@ import (
 )
 
 type Job struct {
+	*LmstfyClient
+
 	Namespace string `json:"namespace"`
 	Queue     string `json:"queue"`
 	Data      []byte `json:"data"`
@@ -41,6 +43,11 @@ const (
 	maxReadTimeout      = 600 // second
 	maxBatchConsumeSize = 100
 )
+
+// Ack allow users to ack the job
+func (job *Job) Ack() error {
+	return job.LmstfyClient.Ack(job.Queue, job.ID)
+}
 
 func NewLmstfyClient(host string, port int, namespace, token string) *LmstfyClient {
 	cli := &http.Client{
@@ -74,6 +81,10 @@ func NewLmstfyWithClient(cli *http.Client, host string, port int, namespace, tok
 		scheme:  scheme,
 		httpCli: cli,
 	}
+}
+
+func (c *LmstfyClient) newJob() *Job {
+	return &Job{LmstfyClient: c}
 }
 
 // EnableErrorOnNilJob would make the client return error when
@@ -371,7 +382,7 @@ func (c *LmstfyClient) consume(queue string, ttrSecond, timeoutSecond uint32, fr
 			RequestID: resp.Header.Get("X-Request-ID"),
 		}
 	}
-	job = &Job{}
+	job = c.newJob()
 	err = json.Unmarshal(respBytes, job)
 	if err != nil {
 		return nil, &APIError{
@@ -476,7 +487,7 @@ func (c *LmstfyClient) batchConsume(queues []string, count, ttrSecond, timeoutSe
 		}
 	}
 	if count == 1 {
-		job := &Job{}
+		job := c.newJob()
 		err = json.Unmarshal(respBytes, job)
 		if err != nil {
 			return nil, &APIError{
@@ -495,6 +506,9 @@ func (c *LmstfyClient) batchConsume(queues []string, count, ttrSecond, timeoutSe
 			Reason:    err.Error(),
 			RequestID: resp.Header.Get("X-Request-ID"),
 		}
+	}
+	for i := range jobs {
+		jobs[i].LmstfyClient = c
 	}
 	return jobs, nil
 }
@@ -570,7 +584,7 @@ func (c *LmstfyClient) consumeFromQueues(ttrSecond, timeoutSecond uint32, freeze
 			RequestID: resp.Header.Get("X-Request-ID"),
 		}
 	}
-	job = &Job{}
+	job = c.newJob()
 	err = json.Unmarshal(respBytes, job)
 	if err != nil {
 		return nil, &APIError{
