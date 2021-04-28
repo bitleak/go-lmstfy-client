@@ -7,13 +7,6 @@ import (
 	"time"
 )
 
-var (
-	Host      = "localhost"
-	Port      = 7777
-	Namespace = "ns1"
-	Token     = "01F2EP8A87NPYWB2T6Q858CTQ2"
-)
-
 func TestParseSchemeFromURL(t *testing.T) {
 	schemeCases := map[string]string{
 		"http://abc.com":  "http",
@@ -32,7 +25,7 @@ func TestParseSchemeFromURL(t *testing.T) {
 }
 
 func TestLmstfyClient_Publish(t *testing.T) {
-	cli := NewLmstfyClient(Host, Port, Namespace, Token)
+	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
 	cli.ConfigRetry(3, 5000)
 	jobID, err := cli.Publish("test-publish", []byte("hello"), 0, 1, 0)
 	if err != nil {
@@ -44,7 +37,7 @@ func TestLmstfyClient_Publish(t *testing.T) {
 }
 
 func TestLmstfyClient_RePublish(t *testing.T) {
-	cli := NewLmstfyClient(Host, Port, Namespace, Token)
+	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
 	cli.ConfigRetry(3, 5000)
 	jobID, err := cli.Publish("test-republish", []byte("hello"), 0, 1, 0)
 	if err != nil {
@@ -77,7 +70,7 @@ func TestLmstfyClient_RePublish(t *testing.T) {
 }
 
 func TestLmstfyClient_BatchPublish(t *testing.T) {
-	cli := NewLmstfyClient(Host, Port, Namespace, Token)
+	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
 	cli.ConfigRetry(3, 5000)
 	jobsData := []interface{}{
 		"hello msg",
@@ -117,7 +110,7 @@ func TestLmstfyClient_BatchPublish(t *testing.T) {
 }
 
 func TestLmstfyClient_Consume(t *testing.T) {
-	cli := NewLmstfyClient(Host, Port, Namespace, Token)
+	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
 	jobID, _ := cli.Publish("test-consume", []byte("hello"), 0, 1, 0)
 	job, err := cli.Consume("test-consume", 10, 0)
 	if err != nil {
@@ -129,7 +122,7 @@ func TestLmstfyClient_Consume(t *testing.T) {
 }
 
 func TestLmstfyClient_BatchConsume(t *testing.T) {
-	cli := NewLmstfyClient(Host, Port, Namespace, Token)
+	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
 	jobMap := map[string]bool{}
 	for i := 0; i < 4; i++ {
 		jobID, _ := cli.Publish("test-batchconsume", []byte("hello"), 0, 1, 0)
@@ -177,7 +170,7 @@ func TestLmstfyClient_BatchConsume(t *testing.T) {
 }
 
 func TestLmstfyClient_Ack(t *testing.T) {
-	cli := NewLmstfyClient(Host, Port, Namespace, Token)
+	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
 	cli.Publish("test-ack", []byte("hello"), 0, 1, 0)
 	job, _ := cli.Consume("test-ack", 10, 0)
 	err := cli.Ack("test-finish", job.ID)
@@ -187,7 +180,7 @@ func TestLmstfyClient_Ack(t *testing.T) {
 }
 
 func TestLmstfyClient_ConsumeFromQueues(t *testing.T) {
-	cli := NewLmstfyClient(Host, Port, Namespace, Token)
+	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
 	cli.Publish("test-multi-consume1", []byte("hello1"), 0, 1, 0)
 	jobID, _ := cli.Publish("test-multi-consume2", []byte("hello2"), 0, 1, 0)
 	job, err := cli.ConsumeFromQueues(10, 1, "test-multi-consume2", "test-multi-consume1")
@@ -200,7 +193,7 @@ func TestLmstfyClient_ConsumeFromQueues(t *testing.T) {
 }
 
 func TestLmstfyClient_QueueSize(t *testing.T) {
-	cli := NewLmstfyClient(Host, Port, Namespace, Token)
+	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
 	cli.Publish("test-queue-size", []byte("hello"), 0, 1, 0)
 	cli.Publish("test-queue-size", []byte("hello"), 0, 1, 0)
 	size, err := cli.QueueSize("test-queue-size")
@@ -213,7 +206,7 @@ func TestLmstfyClient_QueueSize(t *testing.T) {
 }
 
 func TestLmstfyClient_PeekQueue(t *testing.T) {
-	cli := NewLmstfyClient(Host, Port, Namespace, Token)
+	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
 	jobID, _ := cli.Publish("test-peek-queue", []byte("hello1"), 0, 1, 0)
 	cli.Publish("test-peek-queue", []byte("hello2"), 0, 1, 0)
 	job, err := cli.PeekQueue("test-peek-queue")
@@ -231,7 +224,7 @@ func TestLmstfyClient_PeekQueue(t *testing.T) {
 }
 
 func TestLmstfyClient_PeekJob(t *testing.T) {
-	cli := NewLmstfyClient(Host, Port, Namespace, Token)
+	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
 	jobID, _ := cli.Publish("test-peek-job", []byte("hello1"), 0, 1, 0)
 	cli.Publish("test-peek-job", []byte("hello2"), 0, 1, 0)
 	job, err := cli.PeekJob("test-peek-job", jobID)
@@ -244,7 +237,7 @@ func TestLmstfyClient_PeekJob(t *testing.T) {
 }
 
 func TestLmstfyClient_PeekDeadLetter(t *testing.T) {
-	cli := NewLmstfyClient(Host, Port, Namespace, Token)
+	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
 	jobID, _ := cli.Publish("test-peek-deadletter", []byte("hello1"), 0, 1, 0)
 	cli.Consume("test-peek-deadletter", 1, 0)
 	time.Sleep(2 * time.Second) // wait til TTR expires
@@ -258,7 +251,7 @@ func TestLmstfyClient_PeekDeadLetter(t *testing.T) {
 }
 
 func TestLmstfyClient_RespawnDeadLetter(t *testing.T) {
-	cli := NewLmstfyClient(Host, Port, Namespace, Token)
+	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
 	jobID, _ := cli.Publish("test-respawn-deadletter", []byte("hello1"), 0, 1, 0)
 	cli.Consume("test-respawn-deadletter", 1, 0)
 	time.Sleep(2 * time.Second) // wait til TTR expires
@@ -276,7 +269,7 @@ func TestLmstfyClient_RespawnDeadLetter(t *testing.T) {
 }
 
 func TestLmstfyClient_DeleteDeadLetter(t *testing.T) {
-	cli := NewLmstfyClient(Host, Port, Namespace, Token)
+	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
 	jobID, _ := cli.Publish("test-delete-deadletter", []byte("hello1"), 0, 1, 0)
 	cli.Consume("test-delete-deadletter", 1, 0)
 	time.Sleep(2 * time.Second) // wait til TTR expires

@@ -45,7 +45,7 @@ const (
 )
 
 // Ack allow users to ack the job
-func (job *Job) Ack() error {
+func (job *Job) Ack() *APIError {
 	return job.LmstfyClient.Ack(job.Queue, job.ID)
 }
 
