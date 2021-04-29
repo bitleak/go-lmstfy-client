@@ -1,0 +1,1 @@
+cd scripts/docker && docker-compose -p lmstfy down --remove-orphans  && cd ../..
