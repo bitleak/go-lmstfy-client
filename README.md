@@ -1,4 +1,5 @@
-# Lmstfy client
+# Go Lmstfy Client ![github actions](https://github.com/bitleak/go-lmstfy-client/actions/workflows/ci.yaml/badge.svg) [![codecov](https://codecov.io/gh/bitleak/go-lmstfy-client/branch/master/graph/badge.svg?token=FXWN0ZN9ZJ)](https://codecov.io/gh/bitleak/go-lmstfy-client)
+
 
 ## Usage
 
