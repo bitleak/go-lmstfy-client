@@ -55,8 +55,24 @@ for _, job := range jobs {
         panic(err)
     }
 }
-
 ```
 
-> CAUTION: consume would return nil job and error when queue was empty or not found, you can enable
-the client option to return error when the job is nil by revoking `EnableErrorOnNilJob()` function. 
+```$golang
+// High-level Consumer API.
+// Make it easier to consume jobs continuously and don't need to the concern empty job.
+consumer := NewConsumer(&ConsumerConfig{
+    Host:          "localhost",
+    Port:          "7777",
+    Namespace:     "namespace",
+    Token:         "token",
+    Queues:         []string{"q1"},
+    TTR:            30,
+})
+err := consumer.Receive(context.Background(), func(ctx context.Context, job *Job) {
+    // TODO: process the job here
+	if err := job.Ack(); err != nil {
+    }
+})
+
+// Use `consumer.Close()` to stop the consumer 
+```
