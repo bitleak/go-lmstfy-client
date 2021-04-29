@@ -916,7 +916,7 @@ func (c *LmstfyClient) DeleteDeadLetter(queue string, limit int64) *APIError {
 
 func discardResponseBody(resp io.ReadCloser) {
 	// discard response body, to make this connection reusable in the http connection pool
-	ioutil.ReadAll(resp)
+	_, _ = ioutil.ReadAll(resp)
 }
 
 func parseResponseError(resp *http.Response) string {

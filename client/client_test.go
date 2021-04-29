@@ -164,14 +164,14 @@ func TestLmstfyClient_BatchConsume(t *testing.T) {
 	if len(jobs) != 0 {
 		t.Fatal("Mismatched job count")
 	}
-	if time.Now().Sub(now) < 3*time.Second {
+	if time.Since(now) < 3*time.Second {
 		t.Fatal("Mismatched timeout second")
 	}
 }
 
 func TestLmstfyClient_Ack(t *testing.T) {
 	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
-	cli.Publish("test-ack", []byte("hello"), 0, 1, 0)
+	_, _ = cli.Publish("test-ack", []byte("hello"), 0, 1, 0)
 	job, _ := cli.Consume("test-ack", 10, 0)
 	err := cli.Ack("test-finish", job.ID)
 	if err != nil {
@@ -181,7 +181,7 @@ func TestLmstfyClient_Ack(t *testing.T) {
 
 func TestLmstfyClient_ConsumeFromQueues(t *testing.T) {
 	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
-	cli.Publish("test-multi-consume1", []byte("hello1"), 0, 1, 0)
+	_, _ = cli.Publish("test-multi-consume1", []byte("hello1"), 0, 1, 0)
 	jobID, _ := cli.Publish("test-multi-consume2", []byte("hello2"), 0, 1, 0)
 	job, err := cli.ConsumeFromQueues(10, 1, "test-multi-consume2", "test-multi-consume1")
 	if err != nil {
@@ -194,8 +194,8 @@ func TestLmstfyClient_ConsumeFromQueues(t *testing.T) {
 
 func TestLmstfyClient_QueueSize(t *testing.T) {
 	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
-	cli.Publish("test-queue-size", []byte("hello"), 0, 1, 0)
-	cli.Publish("test-queue-size", []byte("hello"), 0, 1, 0)
+	_, _ = cli.Publish("test-queue-size", []byte("hello"), 0, 1, 0)
+	_, _ = cli.Publish("test-queue-size", []byte("hello"), 0, 1, 0)
 	size, err := cli.QueueSize("test-queue-size")
 	if err != nil {
 		t.Fatalf("Failed to get queue size: %s", err)
@@ -208,7 +208,7 @@ func TestLmstfyClient_QueueSize(t *testing.T) {
 func TestLmstfyClient_PeekQueue(t *testing.T) {
 	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
 	jobID, _ := cli.Publish("test-peek-queue", []byte("hello1"), 0, 1, 0)
-	cli.Publish("test-peek-queue", []byte("hello2"), 0, 1, 0)
+	_, _ = cli.Publish("test-peek-queue", []byte("hello2"), 0, 1, 0)
 	job, err := cli.PeekQueue("test-peek-queue")
 	if err != nil {
 		t.Fatalf("Failed to peek queue: %s", err)
@@ -226,7 +226,7 @@ func TestLmstfyClient_PeekQueue(t *testing.T) {
 func TestLmstfyClient_PeekJob(t *testing.T) {
 	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
 	jobID, _ := cli.Publish("test-peek-job", []byte("hello1"), 0, 1, 0)
-	cli.Publish("test-peek-job", []byte("hello2"), 0, 1, 0)
+	_, _ = cli.Publish("test-peek-job", []byte("hello2"), 0, 1, 0)
 	job, err := cli.PeekJob("test-peek-job", jobID)
 	if err != nil {
 		t.Fatalf("Failed to peek job: %s", err)
@@ -239,7 +239,7 @@ func TestLmstfyClient_PeekJob(t *testing.T) {
 func TestLmstfyClient_PeekDeadLetter(t *testing.T) {
 	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
 	jobID, _ := cli.Publish("test-peek-deadletter", []byte("hello1"), 0, 1, 0)
-	cli.Consume("test-peek-deadletter", 1, 0)
+	_, _ = cli.Consume("test-peek-deadletter", 1, 0)
 	time.Sleep(2 * time.Second) // wait til TTR expires
 	size, head, err := cli.PeekDeadLetter("test-peek-deadletter")
 	if err != nil {
@@ -253,7 +253,7 @@ func TestLmstfyClient_PeekDeadLetter(t *testing.T) {
 func TestLmstfyClient_RespawnDeadLetter(t *testing.T) {
 	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
 	jobID, _ := cli.Publish("test-respawn-deadletter", []byte("hello1"), 0, 1, 0)
-	cli.Consume("test-respawn-deadletter", 1, 0)
+	_, _ = cli.Consume("test-respawn-deadletter", 1, 0)
 	time.Sleep(2 * time.Second) // wait til TTR expires
 	count, err := cli.RespawnDeadLetter("test-respawn-deadletter", 2, 120)
 	if err != nil {
@@ -271,7 +271,7 @@ func TestLmstfyClient_RespawnDeadLetter(t *testing.T) {
 func TestLmstfyClient_DeleteDeadLetter(t *testing.T) {
 	cli := NewLmstfyClient(TestHost, TestPort, TestNamespace, TestToken)
 	jobID, _ := cli.Publish("test-delete-deadletter", []byte("hello1"), 0, 1, 0)
-	cli.Consume("test-delete-deadletter", 1, 0)
+	_, _ = cli.Consume("test-delete-deadletter", 1, 0)
 	time.Sleep(2 * time.Second) // wait til TTR expires
 	err := cli.DeleteDeadLetter("test-delete-deadletter", 2)
 	if err != nil {
