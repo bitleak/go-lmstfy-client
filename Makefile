@@ -6,6 +6,12 @@ ENDCOLOR="\033[0m"
 
 .PHONY: all
 
+setup:
+	@bash scripts/setup.sh
+
+teardown:
+	@bash scripts/teardown.sh
+
 test:
 	@bash scripts/setup.sh
 	@bash scripts/test.sh
