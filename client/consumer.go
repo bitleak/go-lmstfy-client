@@ -2,7 +2,9 @@ package client
 
 import (
 	"context"
+	"log"
 	"sync"
+	"sync/atomic"
 )
 
 type ConsumerConfig struct {
@@ -21,9 +23,10 @@ type Consumer struct {
 
 	ErrorCallback func(err error)
 
-	cfg      *ConsumerConfig
-	wg       sync.WaitGroup
-	shutdown chan struct{}
+	cfg          *ConsumerConfig
+	wg           sync.WaitGroup
+	shutdown     chan struct{}
+	spawnCounter uint32
 }
 
 func (cfg *ConsumerConfig) init() {
@@ -48,38 +51,50 @@ func NewConsumer(cfg *ConsumerConfig) *Consumer {
 	}
 }
 
-// Receive would create threads and poll jobs from the remote server
+// Receive would create threads and wait until all the threads finish.
 func (c *Consumer) Receive(ctx context.Context, fn func(ctx context.Context, job *Job)) error {
-	c.wg.Add(c.cfg.Threads)
 	for i := 0; i < c.cfg.Threads; i++ {
-		go func() {
-			defer c.wg.Done()
-
-			for {
-				select {
-				case <-c.shutdown:
-					return
-				default:
-				}
-
-				job, err := c.ConsumeFromQueues(c.cfg.TTR, 3, c.cfg.Queues...)
-				// err == nil and job == nil means no job
-				if err == nil && job == nil {
-					continue
-				}
-				if err != nil {
-					if c.ErrorCallback != nil {
-						c.ErrorCallback(err)
-					}
-					continue
-				}
-				fn(ctx, job)
-			}
-		}()
+		c.createThread(ctx, fn)
 	}
-
 	c.wg.Wait()
 	return nil
+}
+
+// createThread would create a new thread and poll jobs from the remote server.
+func (c *Consumer) createThread(ctx context.Context, fn func(ctx context.Context, job *Job)) {
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		defer func() {
+			if err := recover(); err != nil {
+				log.Printf("Found panic with err :%s, would respawn a new thread", err)
+				atomic.AddUint32(&c.spawnCounter, 1)
+				// spawn a new thread when panic
+				c.createThread(ctx, fn)
+			}
+		}()
+
+		for {
+			select {
+			case <-c.shutdown:
+				return
+			default:
+			}
+
+			job, err := c.ConsumeFromQueues(c.cfg.TTR, 3, c.cfg.Queues...)
+			// err == nil and job == nil means no job
+			if err == nil && job == nil {
+				continue
+			}
+			if err != nil {
+				if c.ErrorCallback != nil {
+					c.ErrorCallback(err)
+				}
+				continue
+			}
+			fn(ctx, job)
+		}
+	}()
 }
 
 // Close would stop all polling threads
