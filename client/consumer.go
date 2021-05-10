@@ -2,8 +2,9 @@ package client
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"sync"
+	"sync/atomic"
 )
 
 type ConsumerConfig struct {
@@ -22,10 +23,10 @@ type Consumer struct {
 
 	ErrorCallback func(err error)
 
-	cfg        *ConsumerConfig
-	wg         sync.WaitGroup
-	shutdown   chan struct{}
-	threadChan chan interface{}
+	cfg          *ConsumerConfig
+	wg           sync.WaitGroup
+	shutdown     chan struct{}
+	spawnCounter uint32
 }
 
 func (cfg *ConsumerConfig) init() {
@@ -46,39 +47,30 @@ func NewConsumer(cfg *ConsumerConfig) *Consumer {
 	return &Consumer{
 		cfg:          cfg,
 		shutdown:     make(chan struct{}),
-		threadChan:   make(chan interface{}, cfg.Threads),
 		LmstfyClient: NewLmstfyClient(cfg.Host, cfg.Port, cfg.Namespace, cfg.Token),
 	}
 }
 
-// Receive would create threads and respawn new goroutine to continue polling jobs when panic.
+// Receive would create threads and wait until all the threads finish.
 func (c *Consumer) Receive(ctx context.Context, fn func(ctx context.Context, job *Job)) error {
 	for i := 0; i < c.cfg.Threads; i++ {
-		c.wg.Add(1)
 		c.createThread(ctx, fn)
 	}
-
-	go func() {
-		for r := range c.threadChan {
-			// no need to add semaphore
-			c.createThread(ctx, fn)
-			fmt.Printf("thread panic, the msg is: %s", r)
-		}
-	}()
-
 	c.wg.Wait()
 	return nil
 }
 
-// addThread would create new thread and poll jobs from the remote server.
+// createThread would create a new thread and poll jobs from the remote server.
 func (c *Consumer) createThread(ctx context.Context, fn func(ctx context.Context, job *Job)) {
+	c.wg.Add(1)
 	go func() {
 		defer c.wg.Done()
 		defer func() {
-			if r := recover(); r != nil {
-				// In order to block at Wait(), new thread should add semaphore before panic thread calls Done().
-				c.wg.Add(1)
-				c.threadChan <- r
+			if err := recover(); err != nil {
+				log.Printf("Found panic with err :%s, would respawn a new thread", err)
+				atomic.AddUint32(&c.spawnCounter, 1)
+				// spawn a new thread when panic
+				c.createThread(ctx, fn)
 			}
 		}()
 
